@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Borrow Books - EduShare</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <nav class="navbar">
+      <a href="/dashboard"
+        ><span class="material-icons">dashboard</span>Dashboard</a
+      >
+      <a href="/user-profile"
+        ><span class="material-icons">person</span>My Profile</a
+      >
+      <a href="/borrow-books" class="active"
+        ><span class="material-icons">book</span>Borrow Books</a
+      >
+      <a href="/my-books"
+        ><span class="material-icons">library_books</span>My Books</a
+      >
+      <a href="/notes"><span class="material-icons">note_add</span>Notes</a>
+      <a href="/reviews"
+        ><span class="material-icons">rate_review</span>Reviews</a
+      >
+      <a href="/trust"><span class="material-icons">star</span>Trust Ratings</a>
+      <a href="/logout"><span class="material-icons">logout</span>Logout</a>
+    </nav>
+
+    <main>
+      <h1>📚 Browse & Borrow Books</h1>
+
+      <div style="margin-bottom: 20px">
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="Search books by title, author, or ISBN..."
+          style="
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+          "
+        />
+      </div>
+
+      <div style="margin-bottom: 20px">
+        <button class="button" onclick="showSection('available')">
+          <span class="material-icons">book</span>Available Books
+        </button>
+        <button
+          class="button"
+          style="
+            margin-left: 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+          "
+          onclick="showSection('borrowed')"
+        >
+          <span class="material-icons">assignment_return</span>My Borrowed Books
+        </button>
+        <button
+          class="button"
+          style="
+            margin-left: 10px;
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+          "
+          onclick="showSection('requests')"
+        >
+          <span class="material-icons">pending_actions</span>My Requests (<span
+            id="requestCount"
+            >0</span
+          >)
+        </button>
+        <button
+          class="button"
+          style="
+            margin-left: 10px;
+            background: linear-gradient(135deg, #ff6b6b, #fa5252);
+          "
+          onclick="showSection('returns')"
+        >
+          <span class="material-icons">restore</span>Return Requests (<span
+            id="returnCount"
+            >0</span
+          >)
+        </button>
+      </div>
+
+      <div
+        id="message"
+        style="
+          display: none;
+          padding: 10px;
+          border-radius: 8px;
+          margin-bottom: 15px;
+        "
+      ></div>
+
+      <div id="availableSection">
+        <h3>Available Books to Borrow</h3>
+        <div id="booksContainer">
+          <p>Loading books...</p>
+        </div>
+      </div>
+
+      <div id="borrowedSection" style="display: none">
+        <h3>My Borrowed Books</h3>
+        <div id="borrowedContainer">
+          <p>Loading borrowed books...</p>
+        </div>
+      </div>
+
+      <div id="requestsSection" style="display: none">
+        <h3>My Borrow Requests</h3>
+        <div id="requestsContainer">
+          <p>Loading requests...</p>
+        </div>
+      </div>
+
+      <div id="returnsSection" style="display: none">
+        <h3>Return Requests</h3>
+        <p>The owner has requested these books to be returned.</p>
+        <div id="returnsContainer">
+          <p>Loading return requests...</p>
+        </div>
+      </div>
+    </main>
+
+    <footer>&copy; 2024 EduShare. All rights reserved.</footer>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      let allBooks = [];
+      let myRequests = [];
+
+      if (!user.id) {
+        window.location.href = "/login";
+      }
+
+      async function loadBooks() {
+        try {
+          const response = await fetch("/api/books");
+          const data = await response.json();
+
+          if (data.success) {
+            // Filter out user's own books
+            allBooks = data.books.filter((book) => book.owner_id !== user.id);
+            displayBooks(allBooks);
+          } else {
+            showMessage("Failed to load books", "error");
+          }
+        } catch (error) {
+          console.error("Load books error:", error);
+          showMessage("Failed to load books", "error");
+        }
+      }
+
+      async function loadMyRequests() {
+        try {
+          const response = await fetch("/api/books/my-requests");
+          const data = await response.json();
+
+          if (data.success) {
+            myRequests = data.requests;
+            $("#requestCount").text(
+              data.requests.filter((r) => r.status === "pending").length
+            );
+            displayMyRequests(data.requests);
+          }
+        } catch (error) {
+          console.error("Load requests error:", error);
+        }
+      }
+
+      async function loadBorrowedBooks() {
+        try {
+          const response = await fetch("/api/books/user/borrowed");
+          const data = await response.json();
+
+          if (data.success) {
+            displayBorrowedBooks(data.books);
+          }
+        } catch (error) {
+          console.error("Load borrowed books error:", error);
+        }
+      }
+
+      async function loadReturnRequests() {
+        try {
+          const response = await fetch("/api/books/return/requests");
+          const data = await response.json();
+
+          if (data.success) {
+            $("#returnCount").text(data.requests.length);
+            displayReturnRequests(data.requests);
+          }
+        } catch (error) {
+          console.error("Load return requests error:", error);
+        }
+      }
+
+      function displayBooks(books) {
+        const container = $("#booksContainer");
+
+        if (books.length === 0) {
+          container.html("<p>No books available.</p>");
+          return;
+        }
+
+        let html = "<ul>";
+        books.forEach((book) => {
+          const statusColor =
+            book.availability_status === "available"
+              ? "#51cf66"
+              : book.availability_status === "borrowed"
+              ? "#ff6b6b"
+              : "#ffd93d";
+
+          // Check if user has already requested this book
+          const existingRequest = myRequests.find(
+            (r) => r.book_id === book.book_id && r.status === "pending"
+          );
+
+          html += `
+                    <li>
+                        <div>
+                            <span class="book-title">${book.title}</span><br>
+                            <strong>Author:</strong> ${book.author}<br>
+                            ${
+                              book.isbn
+                                ? `<strong>ISBN:</strong> ${book.isbn}<br>`
+                                : ""
+                            }
+                            <strong>Owner:</strong> ${book.owner_name} (${
+            book.owner_email
+          })<br>
+                            <strong>Status:</strong> <span style="color: ${statusColor};">${
+            book.availability_status
+          }</span>
+                        </div>
+                        <div style="margin-top: 10px;">
+                            ${
+                              book.availability_status === "available"
+                                ? existingRequest
+                                  ? `<button class="button" disabled style="background: #666;">
+                                        <span class="material-icons">hourglass_empty</span>Request Pending
+                                    </button>
+                                    <p style="font-size: 0.9rem; color: #ffd93d; margin-top: 5px;">
+                                        Your request is pending approval by ${book.owner_name}
+                                    </p>`
+                                  : `<button class="button" onclick="requestBorrow(${book.book_id}, '${book.owner_name}', '${book.owner_email}')">
+                                        <span class="material-icons">send</span>Request to Borrow
+                                    </button>`
+                                : `<span style="color: #ff6b6b;">Currently not available</span>`
+                            }
+                        </div>
+                    </li>
+                `;
+        });
+        html += "</ul>";
+
+        container.html(html);
+      }
+
+      function displayMyRequests(requests) {
+        const container = $("#requestsContainer");
+
+        if (requests.length === 0) {
+          container.html("<p>You have no borrow requests.</p>");
+          return;
+        }
+
+        let html = "<ul>";
+        requests.forEach((request) => {
+          const requestDate = new Date(
+            request.request_date
+          ).toLocaleDateString();
+          const statusColor =
+            request.status === "pending"
+              ? "#ffd93d"
+              : request.status === "approved"
+              ? "#51cf66"
+              : "#ff6b6b";
+
+          html += `
+                    <li>
+                        <div>
+                            <span class="book-title">${request.title}</span><br>
+                            <strong>Author:</strong> ${request.author}<br>
+                            <strong>Owner:</strong> ${request.owner_name} (${
+            request.owner_email
+          })<br>
+                            <strong>Request Date:</strong> ${requestDate}<br>
+                            <strong>Status:</strong> <span style="color: ${statusColor}; text-transform: uppercase;">${
+            request.status
+          }</span>
+                        </div>
+                        ${
+                          request.status === "pending"
+                            ? `<p style="font-size: 0.9rem; color: #aaa; margin-top: 10px;">
+                                Waiting for ${request.owner_name} to approve your request.
+                            </p>`
+                            : request.status === "approved"
+                            ? `<p style="font-size: 0.9rem; color: #51cf66; margin-top: 10px;">
+                                ✓ Approved! You can collect the book from ${request.owner_name}.
+                            </p>`
+                            : `<p style="font-size: 0.9rem; color: #ff6b6b; margin-top: 10px;">
+                                ✗ Request was denied by the owner.
+                            </p>`
+                        }
+                    </li>
+                `;
+        });
+        html += "</ul>";
+
+        container.html(html);
+      }
+
+      function displayBorrowedBooks(books) {
+        const container = $("#borrowedContainer");
+
+        if (books.length === 0) {
+          container.html("<p>You are not currently borrowing any books.</p>");
+          return;
+        }
+
+        let html = "<ul>";
+        books.forEach((book) => {
+          const borrowDate = new Date(
+            book.transaction_date
+          ).toLocaleDateString();
+          const daysBorrowed = Math.floor(
+            (new Date() - new Date(book.transaction_date)) /
+              (1000 * 60 * 60 * 24)
+          );
+
+          html += `
+                    <li>
+                        <div>
+                            <span class="book-title">${book.title}</span><br>
+                            <strong>Author:</strong> ${book.author}<br>
+                            <strong>Owner:</strong> ${book.owner_name}<br>
+                            <strong>Borrowed On:</strong> ${borrowDate}<br>
+                            <strong>Days Borrowed:</strong> <span style="color: ${
+                              daysBorrowed > 30 ? "#ff6b6b" : "#51cf66"
+                            };">${daysBorrowed} days</span>
+                        </div>
+                    </li>
+                `;
+        });
+        html += "</ul>";
+
+        container.html(html);
+      }
+
+      function displayReturnRequests(requests) {
+        const container = $("#returnsContainer");
+
+        if (requests.length === 0) {
+          container.html("<p>No pending return requests.</p>");
+          return;
+        }
+
+        let html = "<ul>";
+        requests.forEach((request) => {
+          const requestDate = new Date(
+            request.request_date
+          ).toLocaleDateString();
+
+          html += `
+                    <li>
+                        <div>
+                            <span class="book-title">${request.title}</span><br>
+                            <strong>Author:</strong> ${request.author}<br>
+                            <strong>Owner:</strong> ${request.owner_name}<br>
+                            <strong>Return Requested On:</strong> ${requestDate}
+                        </div>
+                        <div style="margin-top: 15px;">
+                            <button class="return_request" onclick="approveReturn(${request.return_request_id})">
+                                <span class="material-icons">check_circle</span>Confirm Return
+                            </button>
+                            <p style="font-size: 0.9rem; color: #aaa; margin-top: 10px;">
+                                Click "Confirm Return" once you have physically returned the book to ${request.owner_name}.
+                            </p>
+                        </div>
+                    </li>
+                `;
+        });
+        html += "</ul>";
+
+        container.html(html);
+      }
+
+      async function requestBorrow(bookId, ownerName, ownerEmail) {
+        try {
+          const response = await fetch("/api/books/borrow/request", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ bookId }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            showMessage(
+              `Request sent to ${ownerName} (${ownerEmail})! You will be notified when they respond.`,
+              "success"
+            );
+            loadBooks();
+            loadMyRequests();
+          } else {
+            showMessage(data.message, "error");
+          }
+        } catch (error) {
+          console.error("Request borrow error:", error);
+          showMessage("Failed to send request", "error");
+        }
+      }
+
+      async function approveReturn(returnRequestId) {
+        if (!confirm("Confirm that you have returned this book to the owner?"))
+          return;
+
+        try {
+          const response = await fetch("/api/books/return/approve", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ returnRequestId }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            showMessage(data.message, "success");
+            loadReturnRequests();
+            loadBorrowedBooks();
+          } else {
+            showMessage(data.message, "error");
+          }
+        } catch (error) {
+          console.error("Approve return error:", error);
+          showMessage("Failed to approve return", "error");
+        }
+      }
+
+      function showSection(section) {
+        $(
+          "#availableSection, #borrowedSection, #requestsSection, #returnsSection"
+        ).hide();
+
+        if (section === "available") {
+          $("#availableSection").show();
+        } else if (section === "borrowed") {
+          $("#borrowedSection").show();
+          loadBorrowedBooks();
+        } else if (section === "requests") {
+          $("#requestsSection").show();
+        } else if (section === "returns") {
+          $("#returnsSection").show();
+        }
+      }
+
+      $("#searchInput").on("keyup", function () {
+        const searchTerm = $(this).val().toLowerCase();
+
+        if (searchTerm === "") {
+          displayBooks(allBooks);
+        } else {
+          const filtered = allBooks.filter(
+            (book) =>
+              book.title.toLowerCase().includes(searchTerm) ||
+              book.author.toLowerCase().includes(searchTerm) ||
+              (book.isbn && book.isbn.toLowerCase().includes(searchTerm))
+          );
+          displayBooks(filtered);
+        }
+      });
+
+      function showMessage(text, type) {
+        const msg = $("#message");
+        msg.text(text);
+        msg.css(
+          "background-color",
+          type === "success"
+            ? "rgba(81, 207, 102, 0.1)"
+            : "rgba(255, 107, 107, 0.1)"
+        );
+        msg.css("color", type === "success" ? "#51cf66" : "#ff6b6b");
+        msg.show();
+
+        setTimeout(() => msg.hide(), 5000);
+      }
+
+      loadBooks();
+      loadMyRequests();
+      loadReturnRequests();
+    </script>
+  </body>
+</html>
