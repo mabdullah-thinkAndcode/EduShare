@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dashboard</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/style.css" />
+    <style>
+      img {
+        height: 130px;
+        margin: 20px;
+        background-color: #657e9f;
+        border-radius: 7%;
+      }
+      .dashboardIntro {
+        display: flex;
+        justify-content: space-between;
+        flex-direction: row;
+      }
+      a {
+        display: block;
+      }
+      .flash-message {
+        background-color: #dff0d8;
+        color: #563c76;
+        padding: 10px;
+        border-radius: 4px;
+        margin: 15px 0;
+        display: none;
+      }
+      .flash-message.error {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+      .flash-message.success {
+        background-color: #dff0d8;
+        color: #155724;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar" role="navigation" aria-label="Primary navigation">
+      <a href="/dashboard" class="active" aria-current="page">
+        <span class="material-icons">dashboard</span>Dashboard
+      </a>
+      <a href="/user-profile"
+        ><span class="material-icons">person</span>My Profile</a
+      >
+      <a href="/borrow-books"
+        ><span class="material-icons">book</span>Borrow Books</a
+      >
+      <a href="/my-books"
+        ><span class="material-icons">library_books</span>My Books</a
+      >
+      <a href="/notes"><span class="material-icons">note_add</span>Notes</a>
+      <a href="/reviews"
+        ><span class="material-icons">rate_review</span>Reviews</a
+      >
+      <a href="/trust"><span class="material-icons">star</span>Trust Ratings</a>
+      <a href="/logout"><span class="material-icons">logout</span>Logout</a>
+    </nav>
+
+    <main
+      class="dashboard-container"
+      role="main"
+      aria-labelledby="dashboardHeading"
+    >
+      <div class="dashboardIntro">
+        <div class="dashboardInfoText">
+          <h1 id="dashboardHeading">Welcome, <span id="username"></span>!</h1>
+          <p>Role: <span id="role"></span></p>
+          <p>Trust Rating: <span id="trustRating"></span></p>
+        </div>
+
+        <img id="roleImage" src="" alt="User Role Image" />
+      </div>
+
+      <hr />
+      <h3 style="padding: 10px">Quick Actions:</h3>
+      <ul>
+        <li>
+          <a href="/user-profile" class="action-link">
+            <span class="material-icons">person</span>View & Edit Your Profile
+          </a>
+        </li>
+        <li>
+          <a href="/borrow-books" class="action-link">
+            <span class="material-icons">book</span>Browse & Borrow Books
+          </a>
+        </li>
+        <li>
+          <a href="/my-books" class="action-link">
+            <span class="material-icons">library_books</span>Manage My Books &
+            Requests
+          </a>
+        </li>
+        <li>
+          <a href="/notes" class="action-link">
+            <span class="material-icons">note_add</span>Upload/View Notes
+          </a>
+        </li>
+        <li>
+          <a href="/reviews" class="action-link">
+            <span class="material-icons">rate_review</span>Write/View Reviews
+          </a>
+        </li>
+        <li>
+          <a href="/trust" class="action-link">
+            <span class="material-icons">star</span>View Trust Ratings
+          </a>
+        </li>
+      </ul>
+
+      <div id="flashMessage" class="flash-message"></div>
+    </main>
+
+    <footer>&copy; 2024 EduShare. All rights reserved.</footer>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+      // Get user data from localStorage
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const token = localStorage.getItem("token");
+
+      // Check if user is logged in
+      if (!token || !user.id) {
+        window.location.href = "/login";
+      }
+
+      // Populate user information
+      document.getElementById("username").textContent = user.username || "User";
+      document.getElementById("role").textContent = user.role || "";
+      document.getElementById("trustRating").textContent =
+        user.trust_rating !== undefined ? user.trust_rating.toFixed(1) : "0.0";
+
+      // Set role image
+      const roleImage = document.getElementById("roleImage");
+      if (user.role === "student") {
+        roleImage.src = "/images/student.png";
+        roleImage.alt = "Student Image";
+      } else if (user.role === "teacher") {
+        roleImage.src = "/images/teacher.png";
+        roleImage.alt = "Teacher Image";
+      }
+
+      // Show flash message on page load if passed via URL params
+      window.addEventListener("DOMContentLoaded", () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const message = urlParams.get("message");
+        const type = urlParams.get("type") || "success";
+
+        if (message) {
+          showFlashMessage(decodeURIComponent(message), type);
+          // Clean URL
+          window.history.replaceState({}, document.title, "/dashboard");
+        }
+      });
+
+      // Show flash message function
+      function showFlashMessage(message, type = "success") {
+        const flashDiv = document.getElementById("flashMessage");
+        flashDiv.textContent = message;
+        flashDiv.className = `flash-message ${type}`;
+        flashDiv.style.display = "block";
+
+        setTimeout(() => {
+          flashDiv.style.display = "none";
+        }, 5000);
+      }
+    </script>
+  </body>
+</html>
