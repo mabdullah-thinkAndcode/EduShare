@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reviews - EduShare</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <nav class="navbar">
+      <a href="/dashboard"
+        ><span class="material-icons">dashboard</span>Dashboard</a
+      >
+      <a href="/user-profile"
+        ><span class="material-icons">person</span>My Profile</a
+      >
+      <a href="/borrow-books"
+        ><span class="material-icons">book</span>Borrow Books</a
+      >
+      <a href="/my-books"
+        ><span class="material-icons">library_books</span>My Books</a
+      >
+      <a href="/notes"><span class="material-icons">note_add</span>Notes</a>
+      <a href="/reviews" class="active"
+        ><span class="material-icons">rate_review</span>Reviews</a
+      >
+      <a href="/trust"><span class="material-icons">star</span>Trust Ratings</a>
+      <a href="/logout"><span class="material-icons">logout</span>Logout</a>
+    </nav>
+
+    <main>
+      <h1>⭐ Book Reviews</h1>
+      <p>Search for a book to see its reviews</p>
+
+      <div style="margin-bottom: 20px">
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="Search by book title or author..."
+          style="
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+          "
+        />
+      </div>
+
+      <div
+        id="message"
+        style="
+          display: none;
+          padding: 10px;
+          border-radius: 8px;
+          margin-bottom: 15px;
+        "
+      ></div>
+
+      <div id="booksSection" style="margin-bottom: 30px">
+        <h3>Search Results</h3>
+        <div id="booksContainer">
+          <p>Search for a book to see its reviews...</p>
+        </div>
+      </div>
+
+      <div id="reviewsSection" style="display: none">
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+          "
+        >
+          <h3 id="bookTitle" style="margin: 0"></h3>
+          <button class="button" onclick="backToSearch()">
+            <span class="material-icons">arrow_back</span>Back to Search
+          </button>
+        </div>
+        <div
+          id="averageRating"
+          style="
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+          "
+        ></div>
+        <button
+          class="button"
+          id="addReviewBtn"
+          onclick="showAddReview()"
+          style="margin-bottom: 20px"
+        >
+          <span class="material-icons">add</span>Write a Review
+        </button>
+        <div
+          id="addReviewSection"
+          style="
+            display: none;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+          "
+        >
+          <form id="addReviewForm">
+            <input type="hidden" id="reviewBookId" />
+            <label for="rating">Rating: *</label>
+            <select id="rating" name="rating" class="dropdown" required>
+              <option value="">Select rating</option>
+              <option value="5">⭐⭐⭐⭐⭐ (5 - Excellent)</option>
+              <option value="4">⭐⭐⭐⭐ (4 - Very Good)</option>
+              <option value="3">⭐⭐⭐ (3 - Good)</option>
+              <option value="2">⭐⭐ (2 - Fair)</option>
+              <option value="1">⭐ (1 - Poor)</option>
+            </select>
+
+            <label for="reviewText">Review (Optional):</label>
+            <textarea
+              id="reviewText"
+              name="reviewText"
+              rows="6"
+              placeholder="Share your thoughts about this book..."
+            ></textarea>
+
+            <div style="display: flex; gap: 10px; margin-top: 15px">
+              <button type="submit">
+                <span class="material-icons">send</span>Submit Review
+              </button>
+              <button
+                type="button"
+                class="button"
+                onclick="hideAddReview()"
+                style="background: linear-gradient(135deg, #ff6b6b, #fa5252)"
+              >
+                <span class="material-icons">cancel</span>Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+        <h4>All Reviews</h4>
+        <div id="reviewsContainer">
+          <p>Loading reviews...</p>
+        </div>
+      </div>
+    </main>
+
+    <footer>&copy; 2024 EduShare. All rights reserved.</footer>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      let allBooks = [];
+      let currentBookId = null;
+
+      if (!user.id) {
+        window.location.href = "/login";
+      }
+
+      async function loadBooks() {
+        try {
+          const response = await fetch("/api/books");
+          const data = await response.json();
+
+          if (data.success) {
+            allBooks = data.books;
+          } else {
+            showMessage("Failed to load books", "error");
+          }
+        } catch (error) {
+          console.error("Load books error:", error);
+          showMessage("Failed to load books", "error");
+        }
+      }
+
+      function displayBooks(books) {
+        const container = $("#booksContainer");
+
+        if (books.length === 0) {
+          container.html("<p>No books found matching your search.</p>");
+          return;
+        }
+
+        let html = "<ul>";
+        books.forEach((book) => {
+          html += `
+                    <li style="cursor: pointer;" onclick="viewBookReviews(${
+                      book.book_id
+                    }, '${book.title.replace(
+            /'/g,
+            "\\'"
+          )}', '${book.author.replace(/'/g, "\\'")}')">
+                        <div>
+                            <span class="book-title">${book.title}</span><br>
+                            <strong>Author:</strong> ${book.author}<br>
+                            <strong>Owner:</strong> ${book.owner_name}
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <button class="button">
+                                <span class="material-icons">visibility</span>View Reviews
+                            </button>
+                        </div>
+                    </li>
+                `;
+        });
+        html += "</ul>";
+
+        container.html(html);
+      }
+
+      async function viewBookReviews(bookId, title, author) {
+        currentBookId = bookId;
+        $("#bookTitle").text(`${title} by ${author}`);
+        $("#reviewBookId").val(bookId);
+
+        $("#booksSection").hide();
+        $("#reviewsSection").show();
+
+        await loadAverageRating(bookId);
+        await loadBookReviews(bookId);
+        await checkCanReview(bookId);
+      }
+
+      async function loadAverageRating(bookId) {
+        try {
+          const response = await fetch(`/api/reviews/book/${bookId}/average`);
+          const data = await response.json();
+
+          if (data.success) {
+            const avgStars = "⭐".repeat(Math.round(data.average_rating));
+            $("#averageRating").html(`
+                        <strong>Average Rating:</strong> ${data.average_rating.toFixed(
+                          1
+                        )} / 5.0 ${avgStars}<br>
+                        <strong>Total Reviews:</strong> ${data.review_count}
+                    `);
+          }
+        } catch (error) {
+          console.error("Load average rating error:", error);
+        }
+      }
+
+      async function loadBookReviews(bookId) {
+        try {
+          const response = await fetch(`/api/reviews/book/${bookId}`);
+          const data = await response.json();
+
+          if (data.success) {
+            displayReviews(data.reviews);
+          }
+        } catch (error) {
+          console.error("Load reviews error:", error);
+          showMessage("Failed to load reviews", "error");
+        }
+      }
+
+      async function checkCanReview(bookId) {
+        try {
+          const response = await fetch("/api/reviews/books/available");
+          const data = await response.json();
+
+          if (data.success) {
+            const canReview = data.books.some(
+              (book) => book.book_id === bookId
+            );
+            $("#addReviewBtn").toggle(canReview);
+
+            if (!canReview) {
+              $("#addReviewSection").hide();
+            }
+          }
+        } catch (error) {
+          console.error("Check can review error:", error);
+        }
+      }
+
+      function displayReviews(reviews) {
+        const container = $("#reviewsContainer");
+
+        if (reviews.length === 0) {
+          container.html(
+            "<p>No reviews yet. Be the first to review this book!</p>"
+          );
+          return;
+        }
+
+        let html = "<ul>";
+        reviews.forEach((review) => {
+          const reviewDate = new Date(review.review_date).toLocaleDateString();
+          const isOwner = review.user_id === user.id;
+          const stars = "⭐".repeat(review.rating);
+
+          html += `
+                    <li>
+                        <div>
+                            <strong>${review.username}</strong><br>
+                            <strong>Rating:</strong> ${stars} (${
+            review.rating
+          }/5)<br>
+                            <strong>Date:</strong> ${reviewDate}<br><br>
+                            ${
+                              review.review_text
+                                ? `
+                            <div style="background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 8px; margin-top: 10px;">
+                                ${review.review_text}
+                            </div>
+                            `
+                                : ""
+                            }
+                        </div>
+                        ${
+                          isOwner
+                            ? `
+                        <div style="margin-top: 10px;">
+                            <button class="button" style="background: linear-gradient(135deg, #ff6b6b, #fa5252);" onclick="deleteReview(${review.review_id})">
+                                <span class="material-icons">delete</span>Delete Review
+                            </button>
+                        </div>
+                        `
+                            : ""
+                        }
+                    </li>
+                `;
+        });
+        html += "</ul>";
+
+        container.html(html);
+      }
+
+      function showAddReview() {
+        $("#addReviewSection").show();
+        $("#addReviewBtn").hide();
+      }
+
+      function hideAddReview() {
+        $("#addReviewSection").hide();
+        $("#addReviewBtn").show();
+        $("#addReviewForm")[0].reset();
+      }
+
+      $("#addReviewForm").on("submit", async function (e) {
+        e.preventDefault();
+
+        const formData = {
+          bookId: parseInt($("#reviewBookId").val()),
+          rating: parseInt($("#rating").val()),
+          reviewText: $("#reviewText").val(),
+        };
+
+        try {
+          const response = await fetch("/api/reviews", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(formData),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            showMessage("Review submitted successfully!", "success");
+            hideAddReview();
+            loadAverageRating(currentBookId);
+            loadBookReviews(currentBookId);
+            checkCanReview(currentBookId);
+          } else {
+            showMessage(data.message, "error");
+          }
+        } catch (error) {
+          console.error("Add review error:", error);
+          showMessage("Failed to submit review", "error");
+        }
+      });
+
+      async function deleteReview(reviewId) {
+        if (!confirm("Are you sure you want to delete this review?")) return;
+
+        try {
+          const response = await fetch(`/api/reviews/${reviewId}`, {
+            method: "DELETE",
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            showMessage(data.message, "success");
+            loadAverageRating(currentBookId);
+            loadBookReviews(currentBookId);
+            checkCanReview(currentBookId);
+          } else {
+            showMessage(data.message, "error");
+          }
+        } catch (error) {
+          console.error("Delete review error:", error);
+          showMessage("Failed to delete review", "error");
+        }
+      }
+
+      function backToSearch() {
+        $("#reviewsSection").hide();
+        $("#booksSection").show();
+        currentBookId = null;
+        $("#searchInput").val("");
+        $("#booksContainer").html(
+          "<p>Search for a book to see its reviews...</p>"
+        );
+      }
+
+      $("#searchInput").on("keyup", function () {
+        const searchTerm = $(this).val().toLowerCase().trim();
+
+        if (searchTerm === "") {
+          $("#booksContainer").html(
+            "<p>Search for a book to see its reviews...</p>"
+          );
+        } else {
+          const filtered = allBooks.filter(
+            (book) =>
+              book.title.toLowerCase().includes(searchTerm) ||
+              book.author.toLowerCase().includes(searchTerm)
+          );
+          displayBooks(filtered);
+        }
+      });
+
+      function showMessage(text, type) {
+        const msg = $("#message");
+        msg.text(text);
+        msg.css(
+          "background-color",
+          type === "success"
+            ? "rgba(81, 207, 102, 0.1)"
+            : "rgba(255, 107, 107, 0.1)"
+        );
+        msg.css("color", type === "success" ? "#51cf66" : "#ff6b6b");
+        msg.show();
+
+        setTimeout(() => msg.hide(), 5000);
+      }
+
+      loadBooks();
+    </script>
+  </body>
+</html>
