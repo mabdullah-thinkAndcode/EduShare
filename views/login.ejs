@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Login - EduShare</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Login to EduShare 📚</h1>
+
+      <div
+        id="errorMessage"
+        style="
+          display: none;
+          color: #ff6b6b;
+          padding: 10px;
+          background: rgba(255, 107, 107, 0.1);
+          border-radius: 8px;
+          margin-bottom: 15px;
+        "
+      ></div>
+
+      <form id="loginForm">
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" required />
+
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required />
+
+        <button type="submit">Login</button>
+      </form>
+
+      <p style="margin-top: 20px">
+        Don't have an account?
+        <a href="/register" class="registerNow" style="color: #94f0ff"
+          >Register Now</a
+        >
+      </p>
+    </main>
+
+    <footer>&copy; 2024 EduShare. All rights reserved.</footer>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+      $("#loginForm").on("submit", async function (e) {
+        e.preventDefault();
+
+        const email = $("#email").val();
+        const password = $("#password").val();
+
+        try {
+          const response = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ email, password }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            // Store user data in localStorage
+            localStorage.setItem("user", JSON.stringify(data.user));
+            localStorage.setItem("token", "logged-in");
+
+            // Redirect to dashboard
+            window.location.href = "/dashboard";
+          } else {
+            $("#errorMessage").text(data.message).show();
+          }
+        } catch (error) {
+          $("#errorMessage").text("Login failed. Please try again.").show();
+          console.error("Login error:", error);
+        }
+      });
+    </script>
+  </body>
+</html>
