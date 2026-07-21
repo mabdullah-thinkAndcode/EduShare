@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Register - EduShare</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Register for EduShare 📖</h1>
+
+      <div
+        id="errorMessage"
+        style="
+          display: none;
+          color: #ff6b6b;
+          padding: 10px;
+          background: rgba(255, 107, 107, 0.1);
+          border-radius: 8px;
+          margin-bottom: 15px;
+        "
+      ></div>
+      <div
+        id="successMessage"
+        style="
+          display: none;
+          color: #51cf66;
+          padding: 10px;
+          background: rgba(81, 207, 102, 0.1);
+          border-radius: 8px;
+          margin-bottom: 15px;
+        "
+      ></div>
+
+      <form id="registerForm">
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" required />
+
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" required />
+
+        <label for="password">Password:</label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          required
+          minlength="6"
+        />
+
+        <label for="role">I am a:</label>
+        <select id="role" name="role" class="dropdown" required>
+          <option value="">Select Role</option>
+          <option value="student">Student</option>
+          <option value="teacher">Teacher</option>
+        </select>
+
+        <div id="studentFields" style="display: none">
+          <label for="grade_level">Grade Level:</label>
+          <input type="text" id="grade_level" name="grade_level" />
+        </div>
+
+        <div id="teacherFields" style="display: none">
+          <label for="subject_expertise">Subject Expertise:</label>
+          <input type="text" id="subject_expertise" name="subject_expertise" />
+        </div>
+
+        <button type="submit">Register</button>
+      </form>
+
+      <p style="margin-top: 20px">
+        Already have an account?
+        <a href="/login" class="registerNow" style="color: #94f0ff"
+          >Login Here</a
+        >
+      </p>
+    </main>
+
+    <footer>&copy; 2024 EduShare. All rights reserved.</footer>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+      // Show/hide role-specific fields
+      $("#role").on("change", function () {
+        const role = $(this).val();
+        $("#studentFields").hide();
+        $("#teacherFields").hide();
+
+        if (role === "student") {
+          $("#studentFields").show();
+        } else if (role === "teacher") {
+          $("#teacherFields").show();
+        }
+      });
+
+      $("#registerForm").on("submit", async function (e) {
+        e.preventDefault();
+
+        const formData = {
+          username: $("#username").val(),
+          email: $("#email").val(),
+          password: $("#password").val(),
+          role: $("#role").val(),
+          grade_level: $("#grade_level").val(),
+          subject_expertise: $("#subject_expertise").val(),
+        };
+
+        try {
+          const response = await fetch("/api/auth/register", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(formData),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            $("#successMessage")
+              .text("Registration successful! Redirecting to login...")
+              .show();
+            $("#errorMessage").hide();
+
+            setTimeout(() => {
+              window.location.href = "/login";
+            }, 2000);
+          } else {
+            $("#errorMessage").text(data.message).show();
+            $("#successMessage").hide();
+          }
+        } catch (error) {
+          $("#errorMessage")
+            .text("Registration failed. Please try again.")
+            .show();
+          $("#successMessage").hide();
+          console.error("Registration error:", error);
+        }
+      });
+    </script>
+  </body>
+</html>
