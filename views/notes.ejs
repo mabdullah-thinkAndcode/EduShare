@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Notes - EduShare</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <nav class="navbar">
+      <a href="/dashboard"
+        ><span class="material-icons">dashboard</span>Dashboard</a
+      >
+      <a href="/user-profile"
+        ><span class="material-icons">person</span>My Profile</a
+      >
+      <a href="/borrow-books"
+        ><span class="material-icons">book</span>Borrow Books</a
+      >
+      <a href="/my-books"
+        ><span class="material-icons">library_books</span>My Books</a
+      >
+      <a href="/notes" class="active"
+        ><span class="material-icons">note_add</span>Notes</a
+      >
+      <a href="/reviews"
+        ><span class="material-icons">rate_review</span>Reviews</a
+      >
+      <a href="/trust"><span class="material-icons">star</span>Trust Ratings</a>
+      <a href="/logout"><span class="material-icons">logout</span>Logout</a>
+    </nav>
+
+    <main>
+      <h1>📝 Notes</h1>
+      <p>Upload and view notes for books you own or are borrowing</p>
+
+      <div style="margin-bottom: 20px">
+        <button class="button" onclick="showAddNote()">
+          <span class="material-icons">add</span>Add New Note
+        </button>
+        <button
+          class="button"
+          style="
+            margin-left: 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+          "
+          onclick="showSection('all')"
+        >
+          <span class="material-icons">description</span>All Notes
+        </button>
+      </div>
+
+      <div
+        id="message"
+        style="
+          display: none;
+          padding: 10px;
+          border-radius: 8px;
+          margin-bottom: 15px;
+        "
+      ></div>
+
+      <div id="addNoteSection" style="display: none">
+        <h3>Add New Note</h3>
+        <form
+          id="addNoteForm"
+          style="
+            background: rgba(255, 255, 255, 0.05);
+            padding: 25px;
+            border-radius: 12px;
+          "
+        >
+          <label for="bookId">Select Book: *</label>
+          <select id="bookId" name="bookId" class="dropdown" required>
+            <option value="">Loading books...</option>
+          </select>
+
+          <label for="noteContent">Note Content: *</label>
+          <textarea
+            id="noteContent"
+            name="noteContent"
+            rows="8"
+            required
+            placeholder="Write your notes here..."
+          ></textarea>
+
+          <div style="display: flex; gap: 10px; margin-top: 20px">
+            <button type="submit">
+              <span class="material-icons">save</span>Save Note
+            </button>
+            <button
+              type="button"
+              class="button"
+              onclick="showSection('all')"
+              style="background: linear-gradient(135deg, #ff6b6b, #fa5252)"
+            >
+              <span class="material-icons">cancel</span>Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div id="allNotesSection">
+        <h3>All Notes</h3>
+        <div style="margin-bottom: 20px">
+          <label for="filterBook" style="margin-right: 10px"
+            >Filter by Book:</label
+          >
+          <select
+            id="filterBook"
+            class="dropdown"
+            style="width: auto; display: inline-block; padding: 8px"
+          >
+            <option value="">All Books</option>
+          </select>
+        </div>
+        <div id="notesContainer">
+          <p>Loading notes...</p>
+        </div>
+      </div>
+    </main>
+
+    <footer>&copy; 2024 EduShare. All rights reserved.</footer>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      let allNotes = [];
+
+      if (!user.id) {
+        window.location.href = "/login";
+      }
+
+      async function loadNotes() {
+        try {
+          const response = await fetch("/api/notes");
+          const data = await response.json();
+
+          if (data.success) {
+            allNotes = data.notes;
+            populateBookFilter(data.notes);
+            displayNotes(data.notes);
+          } else {
+            showMessage("Failed to load notes", "error");
+          }
+        } catch (error) {
+          console.error("Load notes error:", error);
+          showMessage("Failed to load notes", "error");
+        }
+      }
+
+      async function loadBooksForNotes() {
+        try {
+          const response = await fetch("/api/notes/books/available");
+          const data = await response.json();
+
+          if (data.success) {
+            if (data.books.length === 0) {
+              $("#bookId").html('<option value="">No books available</option>');
+              $('#addNoteForm button[type="submit"]').prop("disabled", true);
+              showMessage(
+                "You need to own or borrow books before adding notes.",
+                "error"
+              );
+            } else {
+              let options = '<option value="">Select a book</option>';
+              data.books.forEach((book) => {
+                options += `<option value="${book.book_id}">${book.title} by ${book.author}</option>`;
+              });
+              $("#bookId").html(options);
+            }
+          } else {
+            showMessage("Failed to load books", "error");
+          }
+        } catch (error) {
+          console.error("Load books error:", error);
+          showMessage("Failed to load books", "error");
+        }
+      }
+
+      function populateBookFilter(notes) {
+        const bookMap = new Map();
+        notes.forEach((note) => {
+          if (!bookMap.has(note.book_id)) {
+            bookMap.set(note.book_id, note.book_title);
+          }
+        });
+
+        let options = '<option value="">All Books</option>';
+        bookMap.forEach((title, id) => {
+          options += `<option value="${id}">${title}</option>`;
+        });
+
+        $("#filterBook").html(options);
+      }
+
+      function displayNotes(notes) {
+        const container = $("#notesContainer");
+
+        if (notes.length === 0) {
+          container.html("<p>No notes available yet.</p>");
+          return;
+        }
+
+        let html = "<ul>";
+        notes.forEach((note) => {
+          const uploadDate = new Date(note.upload_date).toLocaleString();
+          const isOwner = note.user_id === user.id;
+
+          html += `
+                    <li>
+                        <div>
+                            <span class="book-title">${
+                              note.book_title
+                            }</span> by ${note.book_author}<br>
+                            <strong>By:</strong> ${note.username}<br>
+                            <strong>Date:</strong> ${uploadDate}<br><br>
+                            <div style="background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 8px; margin-top: 10px; white-space: pre-wrap;">
+                                ${note.note_content}
+                            </div>
+                        </div>
+                        ${
+                          isOwner
+                            ? `
+                        <div style="margin-top: 10px;">
+                            <button class="button" style="background: linear-gradient(135deg, #ff6b6b, #fa5252);" onclick="deleteNote(${note.note_id})">
+                                <span class="material-icons">delete</span>Delete Note
+                            </button>
+                        </div>
+                        `
+                            : ""
+                        }
+                    </li>
+                `;
+        });
+        html += "</ul>";
+
+        container.html(html);
+      }
+
+      function showSection(section) {
+        $("#addNoteSection, #allNotesSection").hide();
+
+        if (section === "all") {
+          $("#allNotesSection").show();
+        }
+      }
+
+      function showAddNote() {
+        $("#allNotesSection").hide();
+        $("#addNoteSection").show();
+        loadBooksForNotes();
+      }
+
+      $("#addNoteForm").on("submit", async function (e) {
+        e.preventDefault();
+
+        const formData = {
+          bookId: parseInt($("#bookId").val()),
+          noteContent: $("#noteContent").val(),
+        };
+
+        if (!formData.bookId) {
+          showMessage("Please select a book", "error");
+          return;
+        }
+
+        try {
+          const response = await fetch("/api/notes", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(formData),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            showMessage("Note added successfully!", "success");
+            $("#addNoteForm")[0].reset();
+            showSection("all");
+            loadNotes();
+          } else {
+            showMessage(data.message, "error");
+          }
+        } catch (error) {
+          console.error("Add note error:", error);
+          showMessage("Failed to add note", "error");
+        }
+      });
+
+      async function deleteNote(noteId) {
+        if (!confirm("Are you sure you want to delete this note?")) return;
+
+        try {
+          const response = await fetch(`/api/notes/${noteId}`, {
+            method: "DELETE",
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            showMessage(data.message, "success");
+            loadNotes();
+          } else {
+            showMessage(data.message, "error");
+          }
+        } catch (error) {
+          console.error("Delete note error:", error);
+          showMessage("Failed to delete note", "error");
+        }
+      }
+
+      $("#filterBook").on("change", function () {
+        const bookId = $(this).val();
+
+        if (bookId) {
+          const filteredNotes = allNotes.filter(
+            (note) => note.book_id == bookId
+          );
+          displayNotes(filteredNotes);
+        } else {
+          displayNotes(allNotes);
+        }
+      });
+
+      function showMessage(text, type) {
+        const msg = $("#message");
+        msg.text(text);
+        msg.css(
+          "background-color",
+          type === "success"
+            ? "rgba(81, 207, 102, 0.1)"
+            : "rgba(255, 107, 107, 0.1)"
+        );
+        msg.css("color", type === "success" ? "#51cf66" : "#ff6b6b");
+        msg.show();
+
+        setTimeout(() => msg.hide(), 5000);
+      }
+
+      loadNotes();
+    </script>
+  </body>
+</html>
