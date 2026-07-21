@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>My Books - EduShare</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <nav class="navbar">
+      <a href="/dashboard"
+        ><span class="material-icons">dashboard</span>Dashboard</a
+      >
+      <a href="/user-profile"
+        ><span class="material-icons">person</span>My Profile</a
+      >
+      <a href="/borrow-books"
+        ><span class="material-icons">book</span>Borrow Books</a
+      >
+      <a href="/my-books" class="active"
+        ><span class="material-icons">library_books</span>My Books</a
+      >
+      <a href="/notes"><span class="material-icons">note_add</span>Notes</a>
+      <a href="/reviews"
+        ><span class="material-icons">rate_review</span>Reviews</a
+      >
+      <a href="/trust"><span class="material-icons">star</span>Trust Ratings</a>
+      <a href="/logout"><span class="material-icons">logout</span>Logout</a>
+    </nav>
+
+    <main>
+      <h1>📚 Manage My Books</h1>
+
+      <div style="margin-bottom: 20px">
+        <button class="button" onclick="showAddBook()">
+          <span class="material-icons">library_add</span>Add New Book
+        </button>
+        <button
+          class="button"
+          style="
+            margin-left: 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+          "
+          onclick="showSection('books')"
+        >
+          <span class="material-icons">book</span>My Books
+        </button>
+        <button
+          class="button"
+          style="
+            margin-left: 10px;
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+          "
+          onclick="showSection('requests')"
+        >
+          <span class="material-icons">pending_actions</span>Borrow Requests
+          (<span id="requestCount">0</span>)
+        </button>
+        <button
+          class="button"
+          style="
+            margin-left: 10px;
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+          "
+          onclick="showSection('history')"
+        >
+          <span class="material-icons">history</span>Transaction History
+        </button>
+      </div>
+
+      <div
+        id="message"
+        style="
+          display: none;
+          padding: 10px;
+          border-radius: 8px;
+          margin-bottom: 15px;
+        "
+      ></div>
+
+      <div id="addBookSection" style="display: none">
+        <h3>Add New Book</h3>
+        <form
+          id="addBookForm"
+          style="
+            background: rgba(255, 255, 255, 0.05);
+            padding: 25px;
+            border-radius: 12px;
+          "
+        >
+          <label for="title">Book Title: *</label>
+          <input type="text" id="title" name="title" required />
+
+          <label for="author">Author: *</label>
+          <input type="text" id="author" name="author" required />
+
+          <label for="isbn">ISBN (Optional):</label>
+          <input type="text" id="isbn" name="isbn" />
+
+          <div style="display: flex; gap: 10px; margin-top: 20px">
+            <button type="submit">
+              <span class="material-icons">library_add</span>Add Book
+            </button>
+            <button
+              type="button"
+              class="button"
+              onclick="showSection('books')"
+              style="background: linear-gradient(135deg, #ff6b6b, #fa5252)"
+            >
+              <span class="material-icons">cancel</span>Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div id="booksSection">
+        <h3>My Books</h3>
+        <div id="booksContainer">
+          <p>Loading books...</p>
+        </div>
+      </div>
+
+      <div id="requestsSection" style="display: none">
+        <h3>Pending Borrow Requests</h3>
+        <p>Users who want to borrow your books</p>
+        <div id="requestsContainer">
+          <p>Loading requests...</p>
+        </div>
+      </div>
+
+      <div id="historySection" style="display: none">
+        <h3>Transaction History</h3>
+        <p>All borrowing transactions for your books</p>
+        <div id="historyContainer">
+          <p>Loading history...</p>
+        </div>
+      </div>
+    </main>
+
+    <footer>&copy; 2024 EduShare. All rights reserved.</footer>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+      if (!user.id) {
+        window.location.href = "/login";
+      }
+
+      async function loadMyBooks() {
+        try {
+          const response = await fetch("/api/books/user/owned");
+          const data = await response.json();
+
+          if (data.success) {
+            displayMyBooks(data.books);
+          } else {
+            showMessage("Failed to load books", "error");
+          }
+        } catch (error) {
+          console.error("Load books error:", error);
+          showMessage("Failed to load books", "error");
+        }
+      }
+
+      async function loadBorrowRequests() {
+        try {
+          const response = await fetch("/api/books/borrow/requests");
+          const data = await response.json();
+
+          if (data.success) {
+            $("#requestCount").text(data.requests.length);
+            displayBorrowRequests(data.requests);
+          }
+        } catch (error) {
+          console.error("Load requests error:", error);
+        }
+      }
+
+      async function loadTransactionHistory() {
+        try {
+          const response = await fetch("/api/books/transaction-history");
+          const data = await response.json();
+
+          if (data.success) {
+            displayTransactionHistory(data.transactions);
+          }
+        } catch (error) {
+          console.error("Load history error:", error);
+        }
+      }
+
+      function displayMyBooks(books) {
+        const container = $("#booksContainer");
+
+        if (books.length === 0) {
+          container.html(
+            '<p>You haven\'t added any books yet. Click "Add New Book" to start.</p>'
+          );
+          return;
+        }
+
+        let html = "<ul>";
+        books.forEach((book) => {
+          const statusColor =
+            book.availability_status === "available"
+              ? "#51cf66"
+              : book.availability_status === "borrowed"
+              ? "#ff6b6b"
+              : "#ffd93d";
+
+          html += `
+                    <li>
+                        <div>
+                            <span class="book-title">${book.title}</span><br>
+                            <strong>Author:</strong> ${book.author}<br>
+                            ${
+                              book.isbn
+                                ? `<strong>ISBN:</strong> ${book.isbn}<br>`
+                                : ""
+                            }
+                            <strong>Status:</strong> <span style="color: ${statusColor};">${
+            book.availability_status
+          }</span><br>
+                            ${
+                              book.availability_status === "borrowed"
+                                ? `<strong>Borrowed by:</strong> ${
+                                    book.borrower_name || "N/A"
+                                  }`
+                                : ""
+                            }
+                        </div>
+                        ${
+                          book.availability_status === "borrowed" &&
+                          book.transaction_id
+                            ? `
+                        <div style="margin-top: 10px;">
+                            <button class="button" onclick="requestReturn(${book.transaction_id})">
+                                <span class="material-icons">restore</span>Request Return
+                            </button>
+                        </div>
+                        `
+                            : ""
+                        }
+                    </li>
+                `;
+        });
+        html += "</ul>";
+
+        container.html(html);
+      }
+
+      function displayBorrowRequests(requests) {
+        const container = $("#requestsContainer");
+
+        if (requests.length === 0) {
+          container.html("<p>No pending requests.</p>");
+          return;
+        }
+
+        let html = "<ul>";
+        requests.forEach((request) => {
+          const requestDate = new Date(
+            request.request_date
+          ).toLocaleDateString();
+          html += `
+                    <li>
+                        <div>
+                            <span class="book-title">${request.title}</span><br>
+                            <strong>Author:</strong> ${request.author}<br>
+                            <strong>Requested by:</strong> ${request.requester_name} (${request.requester_email})<br>
+                            <strong>Request Date:</strong> ${requestDate}
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <button class="approveDeny" style="background: linear-gradient(135deg, #51cf66, #37b24d);" onclick="approveRequest(${request.request_id})">
+                                <span class="material-icons">check_circle</span>Approve
+                            </button>
+                            <button class="approveDeny" style="background: linear-gradient(135deg, #ff6b6b, #fa5252); margin-left: 10px;" onclick="denyRequest(${request.request_id})">
+                                <span class="material-icons">cancel</span>Deny
+                            </button>
+                        </div>
+                    </li>
+                `;
+        });
+        html += "</ul>";
+
+        container.html(html);
+      }
+
+      function displayTransactionHistory(transactions) {
+        const container = $("#historyContainer");
+
+        if (transactions.length === 0) {
+          container.html("<p>No transaction history yet.</p>");
+          return;
+        }
+
+        let html = "<ul>";
+        transactions.forEach((transaction) => {
+          const borrowDate = new Date(
+            transaction.transaction_date
+          ).toLocaleDateString();
+          const returnDate = transaction.return_date
+            ? new Date(transaction.return_date).toLocaleDateString()
+            : "Not returned";
+          const status = transaction.return_date
+            ? "Returned"
+            : "Currently Borrowed";
+          const statusColor = transaction.return_date ? "#51cf66" : "#ffd93d";
+
+          html += `
+                    <li>
+                        <div>
+                            <span class="book-title">${transaction.title}</span><br>
+                            <strong>Borrowed by:</strong> ${transaction.borrower_name} (${transaction.borrower_email})<br>
+                            <strong>Borrowed On:</strong> ${borrowDate}<br>
+                            <strong>Returned On:</strong> ${returnDate}<br>
+                            <strong>Status:</strong> <span style="color: ${statusColor};">${status}</span>
+                        </div>
+                    </li>
+                `;
+        });
+        html += "</ul>";
+
+        container.html(html);
+      }
+
+      function showSection(section) {
+        $(
+          "#booksSection, #requestsSection, #historySection, #addBookSection"
+        ).hide();
+
+        if (section === "books") {
+          $("#booksSection").show();
+          loadMyBooks();
+        } else if (section === "requests") {
+          $("#requestsSection").show();
+        } else if (section === "history") {
+          $("#historySection").show();
+          loadTransactionHistory();
+        }
+      }
+
+      function showAddBook() {
+        $("#booksSection, #requestsSection, #historySection").hide();
+        $("#addBookSection").show();
+      }
+
+      $("#addBookForm").on("submit", async function (e) {
+        e.preventDefault();
+
+        const formData = {
+          title: $("#title").val(),
+          author: $("#author").val(),
+          isbn: $("#isbn").val(),
+        };
+
+        try {
+          const response = await fetch("/api/books", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(formData),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            showMessage("Book added successfully!", "success");
+            $("#addBookForm")[0].reset();
+            showSection("books");
+          } else {
+            showMessage(data.message, "error");
+          }
+        } catch (error) {
+          console.error("Add book error:", error);
+          showMessage("Failed to add book", "error");
+        }
+      });
+
+      async function approveRequest(requestId) {
+        if (!confirm("Are you sure you want to approve this request?")) return;
+
+        try {
+          const response = await fetch("/api/books/borrow/approve", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ requestId }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            showMessage(data.message, "success");
+            loadBorrowRequests();
+            loadMyBooks();
+          } else {
+            showMessage(data.message, "error");
+          }
+        } catch (error) {
+          console.error("Approve request error:", error);
+          showMessage("Failed to approve request", "error");
+        }
+      }
+
+      async function denyRequest(requestId) {
+        if (!confirm("Are you sure you want to deny this request?")) return;
+
+        try {
+          const response = await fetch("/api/books/borrow/deny", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ requestId }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            showMessage(data.message, "success");
+            loadBorrowRequests();
+          } else {
+            showMessage(data.message, "error");
+          }
+        } catch (error) {
+          console.error("Deny request error:", error);
+          showMessage("Failed to deny request", "error");
+        }
+      }
+
+      async function requestReturn(transactionId) {
+        if (!confirm("Request the borrower to return this book?")) return;
+
+        try {
+          const response = await fetch("/api/books/return/request", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ transactionId }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            showMessage(data.message, "success");
+            loadMyBooks();
+          } else {
+            showMessage(data.message, "error");
+          }
+        } catch (error) {
+          console.error("Request return error:", error);
+          showMessage("Failed to request return", "error");
+        }
+      }
+
+      function showMessage(text, type) {
+        const msg = $("#message");
+        msg.text(text);
+        msg.css(
+          "background-color",
+          type === "success"
+            ? "rgba(81, 207, 102, 0.1)"
+            : "rgba(255, 107, 107, 0.1)"
+        );
+        msg.css("color", type === "success" ? "#51cf66" : "#ff6b6b");
+        msg.show();
+
+        setTimeout(() => msg.hide(), 5000);
+      }
+
+      loadMyBooks();
+      loadBorrowRequests();
+    </script>
+  </body>
+</html>
