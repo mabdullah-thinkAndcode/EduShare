@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>My Profile - EduShare</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <nav class="navbar">
+      <a href="/dashboard"
+        ><span class="material-icons">dashboard</span>Dashboard</a
+      >
+      <a href="/user-profile" class="active"
+        ><span class="material-icons">person</span>My Profile</a
+      >
+      <a href="/borrow-books"
+        ><span class="material-icons">book</span>Borrow Books</a
+      >
+      <a href="/my-books"
+        ><span class="material-icons">library_books</span>My Books</a
+      >
+      <a href="/notes"><span class="material-icons">note_add</span>Notes</a>
+      <a href="/reviews"
+        ><span class="material-icons">rate_review</span>Reviews</a
+      >
+      <a href="/trust"><span class="material-icons">star</span>Trust Ratings</a>
+      <a href="/logout"><span class="material-icons">logout</span>Logout</a>
+    </nav>
+
+    <main>
+      <h1>👤 My Profile</h1>
+
+      <div
+        id="message"
+        style="
+          display: none;
+          padding: 10px;
+          border-radius: 8px;
+          margin-bottom: 15px;
+        "
+      ></div>
+
+      <div id="viewMode">
+        <div
+          style="
+            background: rgba(255, 255, 255, 0.05);
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+          "
+        >
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 15px;
+            "
+          >
+            <h2 style="color: #94f0ff; margin: 0">Basic Information</h2>
+            <button
+              class="button"
+              onclick="toggleEditMode()"
+              style="padding: 8px 16px"
+            >
+              <span class="material-icons">edit</span>Edit Profile
+            </button>
+          </div>
+          <p><strong>Username:</strong> <span id="displayUsername"></span></p>
+          <p><strong>Email:</strong> <span id="displayEmail"></span></p>
+          <p><strong>Role:</strong> <span id="displayRole"></span></p>
+          <p id="displayGradeLevel" style="display: none">
+            <strong>Grade Level:</strong> <span id="gradeValue"></span>
+          </p>
+          <p id="displaySubject" style="display: none">
+            <strong>Subject Expertise:</strong> <span id="subjectValue"></span>
+          </p>
+          <p><strong>Trust Rating:</strong> <span id="displayTrust"></span></p>
+        </div>
+
+        <div
+          style="
+            background: rgba(255, 255, 255, 0.05);
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+          "
+        >
+          <h2 style="color: #94f0ff; margin-bottom: 15px">Statistics</h2>
+          <div
+            style="
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 15px;
+            "
+          >
+            <div>
+              <p><strong>Books Owned:</strong> <span id="statsOwned"></span></p>
+              <p>
+                <strong>Books Lent Out:</strong> <span id="statsLent"></span>
+              </p>
+              <p>
+                <strong>Total Times Lent:</strong>
+                <span id="statsTotalLent"></span>
+              </p>
+            </div>
+            <div>
+              <p>
+                <strong>Currently Borrowing:</strong>
+                <span id="statsBorrowing"></span>
+              </p>
+              <p>
+                <strong>Total Borrowed:</strong>
+                <span id="statsTotalBorrowed"></span>
+              </p>
+              <p>
+                <strong>Books Returned:</strong>
+                <span id="statsReturned"></span>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="editMode" style="display: none">
+        <div
+          style="
+            background: rgba(255, 255, 255, 0.05);
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+          "
+        >
+          <h2 style="color: #94f0ff; margin-bottom: 15px">Edit Profile</h2>
+          <form id="editProfileForm">
+            <label for="editUsername">Username:</label>
+            <input type="text" id="editUsername" name="username" />
+
+            <label for="editEmail">Email:</label>
+            <input type="email" id="editEmail" name="email" />
+
+            <div id="editGradeLevel" style="display: none">
+              <label for="editGrade">Grade Level:</label>
+              <input type="text" id="editGrade" name="grade_level" />
+            </div>
+
+            <div id="editSubject" style="display: none">
+              <label for="editSubjectField">Subject Expertise:</label>
+              <input
+                type="text"
+                id="editSubjectField"
+                name="subject_expertise"
+              />
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 20px">
+              <button type="submit" class="button">
+                <span class="material-icons">save</span>Save Changes
+              </button>
+              <button
+                type="button"
+                class="button"
+                onclick="toggleEditMode()"
+                style="background: linear-gradient(135deg, #ff6b6b, #fa5252)"
+              >
+                <span class="material-icons">cancel</span>Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+
+    <footer>&copy; 2024 EduShare. All rights reserved.</footer>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      let userData = null;
+
+      if (!user.id) {
+        window.location.href = "/login";
+      }
+
+      async function loadProfile() {
+        try {
+          const response = await fetch("/api/users/profile");
+          const data = await response.json();
+
+          if (data.success) {
+            userData = data.user;
+            displayProfile(data.user);
+          } else {
+            showMessage("Failed to load profile", "error");
+          }
+        } catch (error) {
+          console.error("Load profile error:", error);
+          showMessage("Failed to load profile", "error");
+        }
+      }
+
+      function displayProfile(data) {
+        const trustColor =
+          data.trust_rating >= 4
+            ? "#51cf66"
+            : data.trust_rating >= 3
+            ? "#ffd93d"
+            : data.trust_rating >= 2
+            ? "#ff922b"
+            : "#ff6b6b";
+        const stars = "⭐".repeat(Math.round(data.trust_rating));
+
+        // Display mode
+        $("#displayUsername").text(data.username);
+        $("#displayEmail").text(data.email);
+        $("#displayRole").text(
+          data.role.charAt(0).toUpperCase() + data.role.slice(1)
+        );
+        $("#displayTrust").html(
+          `<span style="color: ${trustColor}; font-size: 1.2rem;">${data.trust_rating.toFixed(
+            1
+          )} ${stars}</span>`
+        );
+
+        if (data.grade_level) {
+          $("#displayGradeLevel").show();
+          $("#gradeValue").text(data.grade_level);
+        }
+
+        if (data.subject_expertise) {
+          $("#displaySubject").show();
+          $("#subjectValue").text(data.subject_expertise);
+        }
+
+        // Statistics
+        $("#statsOwned").text(data.books.length);
+        $("#statsLent").text(data.lend_stats.currently_lent);
+        $("#statsTotalLent").text(data.lend_stats.total_lent);
+        $("#statsBorrowing").text(data.borrow_stats.currently_borrowed);
+        $("#statsTotalBorrowed").text(data.borrow_stats.total_borrowed);
+        $("#statsReturned").text(data.borrow_stats.returned);
+
+        // Edit form
+        $("#editUsername").val(data.username);
+        $("#editEmail").val(data.email);
+
+        if (data.role === "student") {
+          $("#editGradeLevel").show();
+          $("#editGrade").val(data.grade_level || "");
+        } else if (data.role === "teacher") {
+          $("#editSubject").show();
+          $("#editSubjectField").val(data.subject_expertise || "");
+        }
+      }
+
+      function toggleEditMode() {
+        $("#viewMode").toggle();
+        $("#editMode").toggle();
+      }
+
+      $("#editProfileForm").on("submit", async function (e) {
+        e.preventDefault();
+
+        const formData = {
+          username: $("#editUsername").val(),
+          email: $("#editEmail").val(),
+          grade_level: $("#editGrade").val(),
+          subject_expertise: $("#editSubjectField").val(),
+        };
+
+        try {
+          const response = await fetch("/api/users/profile", {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(formData),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            showMessage("Profile updated successfully!", "success");
+            localStorage.setItem("user", JSON.stringify(data.user));
+            toggleEditMode();
+            loadProfile();
+          } else {
+            showMessage(data.message, "error");
+          }
+        } catch (error) {
+          console.error("Update profile error:", error);
+          showMessage("Failed to update profile", "error");
+        }
+      });
+
+      function showMessage(text, type) {
+        const msg = $("#message");
+        msg.text(text);
+        msg.css(
+          "background-color",
+          type === "success"
+            ? "rgba(81, 207, 102, 0.1)"
+            : "rgba(255, 107, 107, 0.1)"
+        );
+        msg.css("color", type === "success" ? "#51cf66" : "#ff6b6b");
+        msg.show();
+
+        setTimeout(() => msg.hide(), 5000);
+      }
+
+      loadProfile();
+    </script>
+  </body>
+</html>
