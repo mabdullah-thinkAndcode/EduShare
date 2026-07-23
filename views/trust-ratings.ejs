@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Trust Ratings - EduShare</title>
+    <link rel="icon" type="image/png" href="/images/favicon.png" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <nav class="navbar">
+      <a href="/dashboard"
+        ><span class="material-icons">dashboard</span>Dashboard</a
+      >
+      <a href="/user-profile"
+        ><span class="material-icons">person</span>My Profile</a
+      >
+      <a href="/borrow-books"
+        ><span class="material-icons">book</span>Borrow Books</a
+      >
+      <a href="/my-books"
+        ><span class="material-icons">library_books</span>My Books</a
+      >
+      <a href="/notes"><span class="material-icons">note_add</span>Notes</a>
+      <a href="/reviews"
+        ><span class="material-icons">rate_review</span>Reviews</a
+      >
+      <a href="/trust" class="active"
+        ><span class="material-icons">star</span>Trust Ratings</a
+      >
+      <a href="/logout"><span class="material-icons">logout</span>Logout</a>
+    </nav>
+
+    <main>
+      <h1>🌟 Trust Ratings</h1>
+      <p>
+        View community trust ratings - users you can rely on for book sharing
+      </p>
+
+      <div style="margin-bottom: 20px">
+        <button class="button" onclick="showSection('all')">
+          <span class="material-icons">leaderboard</span>All Users
+        </button>
+        <button
+          class="button"
+          style="
+            margin-left: 10px;
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+          "
+          onclick="showSection('rate')"
+        >
+          <span class="material-icons">star_rate</span>Rate a User
+        </button>
+      </div>
+
+      <div
+        id="message"
+        style="
+          display: none;
+          padding: 10px;
+          border-radius: 8px;
+          margin-bottom: 15px;
+        "
+      ></div>
+
+      <div id="allUsersSection">
+        <h3>Trust Leaderboard</h3>
+        <div id="usersContainer">
+          <p>Loading users...</p>
+        </div>
+      </div>
+
+      <div id="rateSection" style="display: none">
+        <h3>Rate a User</h3>
+        <p>You can only rate users you have had book transactions with.</p>
+        <form
+          id="rateUserForm"
+          style="
+            background: rgba(255, 255, 255, 0.05);
+            padding: 25px;
+            border-radius: 12px;
+          "
+        >
+          <label for="ratedUserId">Select User: *</label>
+          <select id="ratedUserId" name="ratedUserId" class="dropdown" required>
+            <option value="">Loading users...</option>
+          </select>
+
+          <div
+            id="userInfo"
+            style="
+              display: none;
+              background: rgba(255, 255, 255, 0.03);
+              padding: 15px;
+              border-radius: 8px;
+              margin: 15px 0;
+            "
+          >
+            <h4>User Information</h4>
+            <p><strong>Username:</strong> <span id="userName"></span></p>
+            <p><strong>Email:</strong> <span id="userEmail"></span></p>
+            <p><strong>Role:</strong> <span id="userRole"></span></p>
+            <p>
+              <strong>Current Trust Rating:</strong>
+              <span id="userTrust"></span>
+            </p>
+          </div>
+
+          <label for="ratingValue">Trust Rating: *</label>
+          <select id="ratingValue" name="ratingValue" class="dropdown" required>
+            <option value="">Select rating</option>
+            <option value="5">
+              ⭐⭐⭐⭐⭐ (5 - Excellent - Very reliable)
+            </option>
+            <option value="4">⭐⭐⭐⭐ (4 - Very Good - Reliable)</option>
+            <option value="3">⭐⭐⭐ (3 - Good - Satisfactory)</option>
+            <option value="2">⭐⭐ (2 - Fair - Some issues)</option>
+            <option value="1">⭐ (1 - Poor - Unreliable)</option>
+            <option value="0">0 - Very Poor - Do not recommend</option>
+          </select>
+
+          <div style="display: flex; gap: 10px; margin-top: 20px">
+            <button type="submit">
+              <span class="material-icons">star_rate</span>Submit Rating
+            </button>
+            <button
+              type="button"
+              class="button"
+              onclick="showSection('all')"
+              style="background: linear-gradient(135deg, #ff6b6b, #fa5252)"
+            >
+              <span class="material-icons">cancel</span>Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </main>
+
+    <footer>&copy; 2024 EduShare. All rights reserved.</footer>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      let usersData = [];
+
+      if (!user.id) {
+        window.location.href = "/login";
+      }
+
+      async function loadUsers() {
+        try {
+          const response = await fetch("/api/trust/users");
+          const data = await response.json();
+
+          if (data.success) {
+            displayUsers(data.users);
+          } else {
+            showMessage("Failed to load users", "error");
+          }
+        } catch (error) {
+          console.error("Load users error:", error);
+          showMessage("Failed to load users", "error");
+        }
+      }
+
+      function displayUsers(users) {
+        const container = $("#usersContainer");
+
+        if (users.length === 0) {
+          container.html("<p>No users found.</p>");
+          return;
+        }
+
+        let html = "<ul>";
+        users.forEach((u, index) => {
+          const isCurrentUser = u.user_id === user.id;
+          const trustColor =
+            u.trust_rating >= 4
+              ? "#51cf66"
+              : u.trust_rating >= 3
+              ? "#ffd93d"
+              : u.trust_rating >= 2
+              ? "#ff922b"
+              : "#ff6b6b";
+          const stars = "⭐".repeat(Math.round(u.trust_rating));
+          const rank = index + 1;
+          const medal =
+            rank === 1
+              ? "🥇"
+              : rank === 2
+              ? "🥈"
+              : rank === 3
+              ? "🥉"
+              : `#${rank}`;
+
+          html += `
+                    <li>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <span style="font-size: 1.5rem; margin-right: 10px;">${medal}</span>
+                                <span class="book-title">${u.username}</span>
+                                ${
+                                  isCurrentUser
+                                    ? '<span style="color: #94f0ff;"> (You)</span>'
+                                    : ""
+                                }<br>
+                                <strong>Role:</strong> ${
+                                  u.role.charAt(0).toUpperCase() +
+                                  u.role.slice(1)
+                                }<br>
+                                <strong>Trust Rating:</strong> 
+                                <span style="color: ${trustColor}; font-size: 1.1rem;">
+                                    ${u.trust_rating.toFixed(1)} ${stars}
+                                </span>
+                            </div>
+                        </div>
+                    </li>
+                `;
+        });
+        html += "</ul>";
+
+        container.html(html);
+      }
+
+      async function loadRateableUsers() {
+        try {
+          const response = await fetch("/api/trust/rateable-users");
+          const data = await response.json();
+
+          if (data.success) {
+            usersData = data.users;
+            if (data.users.length === 0) {
+              $("#ratedUserId").html(
+                '<option value="">No users available to rate</option>'
+              );
+              $('#rateUserForm button[type="submit"]').prop("disabled", true);
+              showMessage(
+                "You need to complete transactions before rating users.",
+                "error"
+              );
+            } else {
+              let options = '<option value="">Select a user</option>';
+              data.users.forEach((u) => {
+                options += `<option value="${u.user_id}">${u.username}</option>`;
+              });
+              $("#ratedUserId").html(options);
+            }
+          } else {
+            showMessage("Failed to load users", "error");
+          }
+        } catch (error) {
+          console.error("Load users error:", error);
+          showMessage("Failed to load users", "error");
+        }
+      }
+
+      $("#ratedUserId").on("change", function () {
+        const userId = parseInt($(this).val());
+
+        if (userId) {
+          const selectedUser = usersData.find((u) => u.user_id === userId);
+          if (selectedUser) {
+            $("#userName").text(selectedUser.username);
+            $("#userEmail").text(selectedUser.email);
+            $("#userRole").text(
+              selectedUser.role.charAt(0).toUpperCase() +
+                selectedUser.role.slice(1)
+            );
+            $("#userTrust").text(selectedUser.trust_rating.toFixed(1) + " ⭐");
+            $("#userInfo").show();
+          }
+        } else {
+          $("#userInfo").hide();
+        }
+      });
+
+      $("#rateUserForm").on("submit", async function (e) {
+        e.preventDefault();
+
+        const formData = {
+          ratedUserId: parseInt($("#ratedUserId").val()),
+          ratingValue: parseFloat($("#ratingValue").val()),
+        };
+
+        if (!formData.ratedUserId) {
+          showMessage("Please select a user", "error");
+          return;
+        }
+
+        if (
+          formData.ratingValue === undefined ||
+          formData.ratingValue === null ||
+          formData.ratingValue === ""
+        ) {
+          showMessage("Please select a rating", "error");
+          return;
+        }
+
+        try {
+          const response = await fetch("/api/trust/rate", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(formData),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            showMessage(
+              `Rating submitted! New average: ${data.new_average.toFixed(
+                1
+              )} ⭐`,
+              "success"
+            );
+            $("#rateUserForm")[0].reset();
+            $("#userInfo").hide();
+            showSection("all");
+            loadUsers();
+          } else {
+            showMessage(data.message, "error");
+          }
+        } catch (error) {
+          console.error("Rate user error:", error);
+          showMessage("Failed to submit rating", "error");
+        }
+      });
+
+      function showSection(section) {
+        $("#allUsersSection, #rateSection").hide();
+
+        if (section === "all") {
+          $("#allUsersSection").show();
+          loadUsers();
+        } else if (section === "rate") {
+          $("#rateSection").show();
+          loadRateableUsers();
+        }
+      }
+
+      function showMessage(text, type) {
+        const msg = $("#message");
+        msg.text(text);
+        msg.css(
+          "background-color",
+          type === "success"
+            ? "rgba(81, 207, 102, 0.1)"
+            : "rgba(255, 107, 107, 0.1)"
+        );
+        msg.css("color", type === "success" ? "#51cf66" : "#ff6b6b");
+        msg.show();
+
+        setTimeout(() => msg.hide(), 5000);
+      }
+
+      loadUsers();
+    </script>
+  </body>
+</html>
